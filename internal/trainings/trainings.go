@@ -18,7 +18,9 @@ var (
 	errParsInt      = errors.New("ошибка приобразования string > int")
 	errParsDuration = errors.New("ошибка приобразования string > time.Duranion")
 	errDurationNil  = errors.New("значение Training.Duration <= 0")
-	errTrainingType = errors.New("тип тренеровки != 'Бег' || slice[1] != 'Ходьба'")
+	errTrainingType = errors.New("неизвестный тип тренеровки slice[1] != 'Ходьба'|| slice[1] != 'Бег' ")
+	//errRunningTrainingType = errors.New("неизвестный тип тренеровки slice[1] != 'Бег'")
+	//errWalkingTrainingType = errors.New("неизвестный тип тренеровки slice[1] != 'Ходьба'")
 )
 
 // Training хранит данные о тренеровке
@@ -33,24 +35,28 @@ type Training struct {
 func (t *Training) Parse(datastring string) (err error) {
 	slice := strings.Split(datastring, ",")
 	if len(slice) != 3 {
-		return fmt.Errorf("ошибка Parse: %w", errLennSlice)
+		return fmt.Errorf("ошибка Parse в пакете trainings: %w", errLennSlice)
 	}
 	for _, value := range slice {
 		if value == "" {
-			return fmt.Errorf("ошибка Parse: %w", errValueMissing)
+			return fmt.Errorf("ошибка Parse в пакете trainings: %w", errValueMissing)
 		}
 	}
 	t.Steps, err = strconv.Atoi(slice[0])
 	if err != nil {
-		return fmt.Errorf("ошибка Parse: %w", errParsInt)
+		return fmt.Errorf("ошибка Parse в пакете trainings: %w", errParsInt)
 	}
-	if slice[1] != "Бег" || slice[1] != "Ходьба" {
-		return fmt.Errorf("ошибка Parse: %w", errTrainingType)
+	if slice[1] == "Бег" {
+		t.TrainingType = slice[1]
+	} else if slice[1] == "Ходьба" {
+		t.TrainingType = slice[1]
+	} else {
+		return fmt.Errorf("ошибка Parse в пакете trainings: %w", errTrainingType)
 	}
-	t.TrainingType = slice[1]
+
 	t.Duration, err = time.ParseDuration(slice[2])
 	if err != nil {
-		return fmt.Errorf("ошибка Parse: %w", errParsDuration)
+		return fmt.Errorf("ошибка Parse в пакете trainings: %w", errParsDuration)
 	}
 	return nil
 }
@@ -65,12 +71,19 @@ func (t *Training) ActionInfo() (string, error) {
 	calors := 0.0
 	var err error
 	if t.TrainingType == "Бег" {
-		calors, err = spentenergy.RunningSpentCalories(t.Steps, personaldata.Personal.Weight, t.Duration)
+		calors, err = spentenergy.RunningSpentCalories(t.Steps, t.Weight, t.Duration)
 	} else {
-		calors, err = spentenergy.WalkingSpentCalories(t.Steps, personaldata.Personal(Weight), t.Duration)
+		calors, err = spentenergy.WalkingSpentCalories(t.Steps, t.Weight, t.Height, t.Duration)
 	}
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Printf("Тип тренировки: %s\nДлительность: %0.2f ч.\nДистанция: %0.2f км.\nСкорость: %0.2f км/ч\nСожгли калорий: %0.2f\n", t.TrainingType, t.Duration, distans, speed, calors)
+	output := fmt.Sprintf(`
+	Тип тренировки: %s
+	Длительность: %0.2f ч.
+	Дистанция: %0.2f км.
+	Скорость: %0.2f км/ч
+	Сожгли калорий: %0.2f
+	`, t.TrainingType, t.Duration.Hours(), distans, speed, calors)
+	return output, nil
 }
